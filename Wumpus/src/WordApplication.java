@@ -45,15 +45,16 @@ class WorldApplication {
 		{
 			 FileWriter fw=new FileWriter(wa.out);
 			
-			 char[][][] wumpusWorld = readWumpusWorld(wa.worldSize,wa.gameboard);
-			 
-			 Environment wumpusEnvironment = new Environment(wa.worldSize, wumpusWorld); 
-			    
+		
 			    int trialScores[] = new int[wa.numTrials];
 			    String trialStateSeqs[]=new String[wa.numTrials];
 			    int totalScore = 0;
 		    
 			    for (int currTrial = 0; currTrial < wa.numTrials; currTrial++) {
+			    	
+			    	char[][][] wumpusWorld = readWumpusWorld(wa.worldSize,wa.gameboard);
+					 
+					Environment wumpusEnvironment = new Environment(wa.worldSize, wumpusWorld); 
 			    		    	
 			    	Simulation trial = new Simulation(wumpusEnvironment, wa.maxSteps, nonDeterministicMode); //, outputWriter, nonDeterministicMode);
 			    	trialScores[currTrial] = trial.getScore();
@@ -124,7 +125,7 @@ class WorldApplication {
 		
 		char[][][] newWorld = new char[size][size][4];
 	
-		//4: 0,1,2,3-> P,W,G,A
+		//4 P,W,G,A
 		
 		return newWorld;
 	}
