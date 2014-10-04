@@ -96,7 +96,7 @@ class WorldApplication {
 		System.out.println("-ms max steps");
 		System.out.println("-ws world size");
 		
-		System.out.println("\njava WorldApplication -i gameborad.txt -o output.txt -n 1 -ms 50 -ws 4");
+		System.out.println("\njava WorldApplication -i gameboard.txt -o output.txt -n 1 -ms 50 -ws 4");
 		
 	}
 
@@ -171,8 +171,8 @@ class WorldApplication {
 				for(int j = 0 ; j < size ; ++j)
 				{
 					room_attri = line.substring(6 * j + 1, 6 * j + 5);
-					newWorld[i / 3][j][(i + 2) % 3] = room_attri.charAt(1);
-					newWorld[i / 3][j][(i + 2) % 3 + 1] = room_attri.charAt(3);
+					newWorld[i / 3][j][(i + 1) % 3] = room_attri.charAt(1);
+					newWorld[i / 3][j][(i + 1) % 3 + 1] = room_attri.charAt(3);
 				}
 			}
 			

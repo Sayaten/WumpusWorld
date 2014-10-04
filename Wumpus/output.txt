@@ -1,0 +1,7 @@
+
+Trial 1 score: -1002
+Trial 1 StateSeq: START_TRIAL,1_GRAB,2_TURN_RIGHT,3_GO_FORWARD,END_TRIAL
+
+Number of trials: 1
+Total Score: -1002
+Average Score: -1002.0

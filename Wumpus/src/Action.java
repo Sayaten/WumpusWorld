@@ -27,9 +27,7 @@ class Action {
 	public static int END_TRIAL = 7;
 	
 	public Action() {
-		
 		// nothing to construct...
-		
 	}
 	
 	public static String printAction(int action) {

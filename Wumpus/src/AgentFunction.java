@@ -71,12 +71,34 @@ class AgentFunction {
 		stench = tp.getStench();
 		scream = tp.getScream();
 		
-		
+		/*
 		if (bump == true || glitter == true || breeze == true || stench == true || scream == true) 
 		{
 			// do something
 		}
+		*/
 		
+		// do something
+		if(bump)
+		{
+			
+		}
+		if(glitter)
+		{
+			
+		}
+		if(breeze)
+		{
+			
+		}
+		if(stench)
+		{
+			
+		}
+		if(scream)
+		{
+			
+		}
 		// return action to be performed
 	    return actionTable[rand.nextInt(8)];	    
 	}
