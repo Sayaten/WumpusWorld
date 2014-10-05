@@ -45,9 +45,9 @@ class Agent {
 		hasGold = false;
 		
 		// modify code
-		worldSize = wumpusWorld.getWorldSize();
 		wumpusWorld = world;
-		agentFunction = new AgentFunction(worldSize, this.getLocation());
+		worldSize = wumpusWorld.getWorldSize();
+		agentFunction = new AgentFunction(worldSize, wumpusWorld.getAgentLocation());
 		percept = perceptTrans;
 		
 		// initial location
