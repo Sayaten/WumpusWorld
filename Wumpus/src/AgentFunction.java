@@ -34,30 +34,64 @@ class AgentFunction {
 	private boolean scream;
 	private Random rand;
 
-	public AgentFunction()
+	// added variable
+	private int brzcnt;
+	private int stchcnt;
+
+	private int worldSize;
+	private int scoremap[][][];
+	// if scoremap[][][0] == -1 then probability of breeze
+	// if scoremap[][][1] == -1 then probability of wumpus
+	// if scoremap[][][0] >= -2 then there is of breeze
+	// if scoremap[][][1] >= -2 then there is of wumpus
+	// if scoremap[][][2] == 0 then there is non-explored
+	// if scoremap[][][2] == 1 then there is explored
+		
+	private char map[][][];
+
+	private boolean isFirstAction;
+	private boolean isShooted;
+	
+	public AgentFunction(int worldSize, int[] agentPos)
 	{
 		// for illustration purposes; you may delete all code
 		// inside this constructor when implementing your 
 		// own intelligent agent
 
 		// this integer array will store the agent actions
-		actionTable = new int[8];
+		actionTable = new int[5];
 				  
 		actionTable[0] = Action.GO_FORWARD;
-		actionTable[1] = Action.GO_FORWARD;
-		actionTable[2] = Action.GO_FORWARD;
-		actionTable[3] = Action.GO_FORWARD;
-		actionTable[4] = Action.TURN_RIGHT;
-		actionTable[5] = Action.TURN_LEFT;
-		actionTable[6] = Action.GRAB;
-		actionTable[7] = Action.SHOOT;
+		actionTable[1] = Action.TURN_RIGHT;
+		actionTable[2] = Action.TURN_LEFT;
+		actionTable[3] = Action.GRAB;
+		actionTable[4] = Action.SHOOT;
 		
 		// new random number generator, for
 		// randomly picking actions to execute
 		rand = new Random();
+		
+		// added initial code
+		brzcnt = 0;
+		stchcnt = 0;
+		this.worldSize = worldSize;
+		scoremap = new int[this.worldSize][this.worldSize][3];
+		isFirstAction = true;
+		isShooted = false;
+		
+		for(int i = 0 ; i < worldSize ; ++i)
+		{
+			for(int j = 0 ; j < worldSize ; ++j)
+			{
+				scoremap[i][j][0] = 0;
+				scoremap[i][j][1] = 0;
+				scoremap[i][j][2] = 0;
+			}
+		}
+		scoremap[agentPos[0]][agentPos[1]][2] = 1;
 	}
 
-	public int process(TransferPercept tp)
+	public int process(TransferPercept tp, int[] agentPos, int agentDir)
 	{
 		// To build your own intelligent agent, replace
 		// all code below this comment block. You have
@@ -79,28 +113,195 @@ class AgentFunction {
 		*/
 		
 		// do something
-		if(bump)
-		{
-			
-		}
+		
+		scoremap[agentPos[0]][agentPos[1]][2] = 1;
+		
 		if(glitter)
 		{
-			
+			return Action.GRAB;
+		}
+		if(bump)
+		{
+			if(agentDir == 'N')
+			{
+				if(agentPos[1] - 1 >= 0) // Agent is far form west wall
+				{
+					if(agentPos[1] + 1 < worldSize) // Agent is far from west and east wall
+					{
+						if(scoremap[agentPos[0]][agentPos[1] - 1][2] == 0)
+						{
+							return Action.TURN_LEFT;
+						}
+						else
+						{
+							return Action.TURN_RIGHT;
+						}	
+					}
+					else // Agent is near by east wall
+					{
+						return Action.TURN_LEFT;
+					}
+				}
+				else // Agent is near by west wall
+				{
+					return Action.TURN_RIGHT;
+				}
+			}
+			else if(agentDir == 'S')
+			{
+				if(agentPos[1] - 1 >= 0) // Agent is far form west wall
+				{
+					if(agentPos[1] + 1 < worldSize) // Agent is far from west and east wall
+					{
+						if(scoremap[agentPos[0]][agentPos[1] - 1][2] == 0)
+						{
+							return Action.TURN_RIGHT;
+						}
+						else
+						{
+							return Action.TURN_LEFT;
+						}	
+					}
+					else // Agent is near by east wall
+					{
+						return Action.TURN_RIGHT;
+					}
+				}
+				else // Agent is near by west wall
+				{
+					return Action.TURN_LEFT;
+				}
+			}
+			else if(agentDir == 'W')
+			{
+				if(agentPos[0] - 1 >= 0) // Agent is far from south wall
+				{
+					if(agentPos[0] + 1 < worldSize) // Agent is far from south and north wall
+					{
+						if(scoremap[agentPos[0] - 1][agentPos[1]][2] == 0)
+						{
+							return Action.TURN_LEFT;
+						}
+						else
+						{
+							return Action.TURN_RIGHT;
+						}	
+					}
+					else // Agent is near by north wall
+					{
+						return Action.TURN_LEFT;
+					}
+				}
+				else // Agent is near by south wall
+				{
+					return Action.TURN_RIGHT;
+				}
+			} 
+			else if(agentDir == 'E')
+			{
+				if(agentPos[0] - 1 >= 0) // Agent is far from south wall
+				{
+					if(agentPos[0] + 1 < worldSize) // Agent is far from south and north wall
+					{
+						if(scoremap[agentPos[0] - 1][agentPos[1]][2] == 0)
+						{
+							return Action.TURN_RIGHT;
+						}
+						else
+						{
+							return Action.TURN_LEFT;
+						}	
+					}
+					else // Agent is near by north wall
+					{
+						return Action.TURN_RIGHT;
+					}
+				}
+				else // Agent is near by south wall
+				{
+					return Action.TURN_LEFT;
+				}
+			}
 		}
 		if(breeze)
 		{
-			
+			if(isFirstAction)
+			{
+				if(stench)
+				{
+					if(!isShooted)
+					{
+						return Action.SHOOT;
+					}
+					else
+					{
+						return Action.GO_FORWARD;
+					}
+				}
+				else
+				{
+					return actionTable[rand.nextInt(3)];
+				}
+			}
+			else
+			{
+				if(brzcnt == 0)
+				{
+					++brzcnt;
+					return Action.TURN_RIGHT;
+				}
+				else if(brzcnt == 1)
+				{
+					++brzcnt;
+					return Action.TURN_RIGHT;
+				}
+				else if(brzcnt == 2)
+				{
+					brzcnt = 0;
+					return Action.GO_FORWARD;
+				}
+			}
 		}
 		if(stench)
 		{
-			
+			if(isFirstAction)
+			{
+				if(!isShooted)
+				{
+					return Action.SHOOT;
+				}
+				else
+				{
+					return Action.GO_FORWARD;
+				}
+			}
+			else
+			{
+				if(stchcnt == 0)
+				{
+					++brzcnt;
+					return Action.TURN_RIGHT;
+				}
+				else if(stchcnt == 1)
+				{
+					++brzcnt;
+					return Action.TURN_RIGHT;
+				}
+				else if(stchcnt == 2)
+				{
+					brzcnt = 0;
+					return Action.GO_FORWARD;
+				}
+			}
 		}
-		if(scream)
-		{
-			
-		}
+
+		isFirstAction = false;
+		
+		return Action.GO_FORWARD;
+		
+		
 		// return action to be performed
-	    return actionTable[rand.nextInt(8)];	    
+	    //return actionTable[rand.nextInt(8)];	    
 	}
 	
 	// public method to return the agent's name

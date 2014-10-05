@@ -44,11 +44,11 @@ class Agent {
 		isDead = false;
 		hasGold = false;
 		
-		wumpusWorld = world;
-		agentFunction = new AgentFunction();
-		percept = perceptTrans;
-		
+		// modify code
 		worldSize = wumpusWorld.getWorldSize();
+		wumpusWorld = world;
+		agentFunction = new AgentFunction(worldSize, this.getLocation());
+		percept = perceptTrans;
 		
 		// initial location
 		location = wumpusWorld.getAgentLocation();
@@ -77,7 +77,7 @@ class Agent {
 	}
 	
 	public int chooseAction() {
-		return agentFunction.process(percept);
+		return agentFunction.process(percept, this.getLocation(), this.getDirection());
 	}
 	
 	public char getAgentIcon() {
