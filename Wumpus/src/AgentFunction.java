@@ -39,20 +39,31 @@ class AgentFunction {
 	private int stchcnt;
 
 	private int worldSize;
-	private int scoremap[][][];
-	// if scoremap[][][0] == -1 then probability of pit
-	// if scoremap[][][0] <= -2 then high probability is of pit
-	// if scoremap[][][0] == 1 then there is no pit
-	// if scoremap[][][1] == -1 then probability of wumpus
-	// if scoremap[][][1] <= -2 then high probability of wumpus
-	// if scoremap[][][1] == 1 then there is no wumpus
-	// if scoremap[][][2] == 0 then there is non-explored
-	// if scoremap[][][2] == 1 then there is explored
 
-	private char map[][][];
+	private int TYPE_PIT = 0;
+	private int TYPE_WUMPUS = 1;
+	private int TYPE_EXPLORED = 2;
+
+	private int POS_Y = 0;
+	private int POS_X = 1;
+
+	private int scoreMap[][][];
+	// if scoreMap[][][TYPE_PIT] == -1 then probability of pit
+	// if scoreMap[][][TYPE_PIT] <= -2 then high probability is of pit
+	// if scoreMap[][][TYPE_PIT] == 1 then there is no pit
+	// if scoreMap[][][TYPE_WUMPUS] == -1 then probability of wumpus
+	// if scoreMap[][][TYPE_WUMPUS] <= -2 then high probability of wumpus
+	// if scoreMap[][][TYPE_WUMPUS] == 1 then there is no wumpus
+	// if scoreMap[][][TYPE_EXPLORED] == 0 then there is non-explored
+	// if scoreMap[][][TYPE_EXPLORED] == 1 then there is explored
 
 	private boolean isFirstMoving;
 	private boolean isShooted;
+	private boolean isLastMoveBackward;
+	private boolean mustShoot;
+	private int stchRoomCnt;
+	private boolean isFindWumpus;
+	private boolean isBeforePerceptBrz;
 
 	public AgentFunction(int worldSize, int[] agentPos) {
 		// for illustration purposes; you may delete all code
@@ -75,22 +86,27 @@ class AgentFunction {
 		// added initial code
 		brzcnt = 0;
 		stchcnt = 0;
+		stchRoomCnt = 0;
+		isFindWumpus = false;
 		this.worldSize = worldSize;
-		scoremap = new int[this.worldSize][this.worldSize][3];
+		scoreMap = new int[this.worldSize][this.worldSize][3];
 		isFirstMoving = true;
 		isShooted = false;
+		mustShoot = false;
+		isBeforePerceptBrz = false;
 
 		for (int i = 0; i < worldSize; ++i) {
 			for (int j = 0; j < worldSize; ++j) {
-				scoremap[i][j][0] = 0;
-				scoremap[i][j][1] = 0;
-				scoremap[i][j][2] = 0;
+				scoreMap[i][j][TYPE_PIT] = 0;
+				scoreMap[i][j][TYPE_WUMPUS] = 0;
+				scoreMap[i][j][TYPE_EXPLORED] = 0;
 			}
 		}
-		scoremap[agentPos[0]][agentPos[1]][2] = 1;
+		//scoreMap[agentPos[POS_Y]][agentPos[POS_X]][TYPE_EXPLORED] = 1;
+		isLastMoveBackward = false;
 	}
 
-	public int process(TransferPercept tp, int[] agentPos, int agentDir) {
+	public int process(TransferPercept tp, int[] agentPos, char agentDir) {
 		// To build your own intelligent agent, replace
 		// all code below this comment block. You have
 		// access to all percepts through the object
@@ -110,100 +126,99 @@ class AgentFunction {
 
 		// do something
 
-		scoremap[agentPos[0]][agentPos[1]][2] = 1;
-
 		if (glitter) {
 			return Action.GRAB;
 		}
-		
-		// not fished
-		/*
-		if (breeze || stench)
+
+		if (scream) // Wumpus is not in map
 		{
-			if (breeze && stench) 
+			for (int i = 0; i < worldSize; ++i) {
+				for (int j = 0; j < worldSize; ++j) {
+					scoreMap[i][j][TYPE_WUMPUS] = 1;
+				}
+			}
+		}
+
+		if (breeze || stench) {
+			if (breeze && stench) // agent is nearby pit and wumpus
 			{
-				if(isFirstMoving)
+				if(scoreMap[agentPos[POS_Y]][agentPos[POS_X]][TYPE_EXPLORED] == 0)
 				{
-					if(!isShooted)
-					{
+					updateScoreMap(agentPos, TYPE_PIT);
+					scoreMap[agentPos[POS_Y]][agentPos[POS_X]][TYPE_EXPLORED] = 0;
+					updateScoreMap(agentPos, TYPE_WUMPUS);
+				}
+				isBeforePerceptBrz = true;
+				if (isFirstMoving) {
+					if (!isShooted) {
+						// update scoreMap
 						isShooted = true;
 						return Action.SHOOT;
-					}
-					else
-					{
-						// update score map
-					
+					} else {
 						// return action
 						isFirstMoving = false;
 						return Action.GO_FORWARD;
 					}
-				}	
-				else
-				{
-					if (brzcnt == 0) {
-						++brzcnt;
+				} else {
+					if (isLastMoveBackward && stchcnt == 0) {
+						if (isBeforePerceptBrz) {
+							++stchcnt;
+							return Action.TURN_RIGHT;
+						} else if (!isShooted) {
+							return Action.SHOOT;
+						} else {
+							isLastMoveBackward = false;
+							return Action.GO_FORWARD;
+						}
+					}
+					// go to backward
+					else if (stchcnt == 0) {
+						if (mustShoot) {
+							if (!isShooted) {
+								isShooted = true;
+								return Action.SHOOT;
+							} else {
+								++stchcnt;
+								return Action.TURN_RIGHT;
+							}
+						}
+						++stchcnt;
 						return Action.TURN_RIGHT;
-					} else if (brzcnt == 1) {
-						++brzcnt;
+					} else if (stchcnt == 1) {
+						++stchcnt;
 						return Action.TURN_RIGHT;
-					} else if (brzcnt == 2) {
-						brzcnt = 0;
+					} else if (stchcnt == 2) {
+						stchcnt = 0;
 						isFirstMoving = false;
+						isLastMoveBackward = true;
 						return Action.GO_FORWARD;
 					}
 				}
 			} else {
 				if (breeze) { // only breeze
-					// update score map
-					if (agentPos[0] == 0) {
-						if(scoremap[agentPos[0] + 1][agentPos[1]][0] != 1)
-						{
-							scoremap[agentPos[0] + 1][agentPos[1]][0] -= 2;
-						}
-					} else if (agentPos[0] == worldSize - 1) {
-						if(scoremap[agentPos[0] - 1][agentPos[1]][0] != 1)
-						{
-							scoremap[agentPos[0] - 1][agentPos[1]][0] -= 2;
-						}
-					} else {
-						if(scoremap[agentPos[0] + 1][agentPos[1]][0] != 1)
-						{
-							scoremap[agentPos[0] + 1][agentPos[1]][0] -= 2;
-						}
-
-						if(scoremap[agentPos[0] - 1][agentPos[1]][0] != 1)
-						{
-							scoremap[agentPos[0] - 1][agentPos[1]][0] -= 2;
-						}
-					}
-
-					if (agentPos[1] == 0) {
-						if(scoremap[agentPos[0]][agentPos[1] + 1][0] != 1)
-						{
-							scoremap[agentPos[0]][agentPos[1] + 1][0] -= 2;
-						}
-					} else if (agentPos[1] == worldSize - 1) {
-						if(scoremap[agentPos[0]][agentPos[1] + 1][1] != 1)
-						{
-							scoremap[agentPos[0]][agentPos[1] + 1][1] -= 2;
-						}
-					} else {
-						if(scoremap[agentPos[0]][agentPos[1] + 1][0] != 1)
-						{
-							scoremap[agentPos[0]][agentPos[1] + 1][0] -= 2;
-						}
-						if(scoremap[agentPos[0]][agentPos[1] + 1][1] != 1)
-						{
-							scoremap[agentPos[0]][agentPos[1] + 1][1] -= 2;
-						}
-					}
-
-					// return action
+					isBeforePerceptBrz = true;
+					updateScoreMap(agentPos, TYPE_PIT);
 					if (isFirstMoving) {
 						isFirstMoving = false;
+						// can't choose action because agent can't guess where
+						// pit is.
+						// choose random action
 						return actionTable[rand.nextInt(3)];
 					} else {
-						if (brzcnt == 0) {
+						if (isLastMoveBackward && brzcnt == 0) {
+							if (isBeforePerceptBrz) {
+								int randNum = rand.nextInt(3);
+								if (actionTable[randNum] == actionTable[0]) {
+									isLastMoveBackward = false;
+								}
+								return actionTable[randNum];
+							} else {
+								isLastMoveBackward = false;
+								return Action.GO_FORWARD;
+							}
+						}
+						// go to backward
+						else if (brzcnt == 0) {
 							++brzcnt;
 							return Action.TURN_RIGHT;
 						} else if (brzcnt == 1) {
@@ -212,42 +227,76 @@ class AgentFunction {
 						} else if (brzcnt == 2) {
 							brzcnt = 0;
 							isFirstMoving = false;
+							isLastMoveBackward = true;
 							return Action.GO_FORWARD;
 						}
 					}
-				} else { // only stench
+				}
+				if (stench) { // only stench
+					updateScoreMap(agentPos, TYPE_WUMPUS);
+					System.out.println(isBeforePerceptBrz+ " " + isSafe(agentPos, agentDir));
+					if (isBeforePerceptBrz) {
+						if (isSafe(agentPos, agentDir)) {
+							isBeforePerceptBrz = false;
+							return Action.GO_FORWARD;
+						}
+					}
+					isBeforePerceptBrz = false;
 					if (isFirstMoving) {
 						if (!isShooted) {
+							isShooted = true;
 							return Action.SHOOT;
 						} else {
 							isFirstMoving = false;
 							return Action.GO_FORWARD;
 						}
 					} else {
-						if (stchcnt == 0) {
-							++brzcnt;
+						if (isLastMoveBackward) {
+							if (!isShooted) {
+								isShooted = true;
+								return Action.SHOOT;
+							} else {
+								isLastMoveBackward = false;
+								return Action.GO_FORWARD;
+							}
+						}
+						// go to backward
+						else if (stchcnt == 0) {
+							if (mustShoot) {
+								if (!isShooted) {
+									isShooted = true;
+									return Action.SHOOT;
+								} else {
+									++stchcnt;
+									return Action.TURN_RIGHT;
+								}
+							}
+							++stchcnt;
 							return Action.TURN_RIGHT;
 						} else if (stchcnt == 1) {
-							++brzcnt;
+							++stchcnt;
 							return Action.TURN_RIGHT;
 						} else if (stchcnt == 2) {
-							brzcnt = 0;
+							stchcnt = 0;
 							isFirstMoving = false;
+							isLastMoveBackward = true;
 							return Action.GO_FORWARD;
 						}
 					}
 				}
 			}
 		}
-		*/
+
+		updateScoreMap(agentPos, TYPE_EXPLORED);
+		isBeforePerceptBrz = false;
 		
 		if (bump) {
 			if (agentDir == 'N') {
-				if (agentPos[1] - 1 >= 0) // Agent is far form west wall
+				if (agentPos[POS_X] - 1 >= 0) // Agent is far form west wall
 				{
-					if (agentPos[1] + 1 < worldSize) // Agent is far from west and east wall
+					if (agentPos[POS_X] + 1 < worldSize) // Agent is far from west and east wall
 					{
-						if (scoremap[agentPos[0]][agentPos[1] - 1][2] == 0) {
+						if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_EXPLORED] == 0) {
 							return Action.TURN_LEFT;
 						} else {
 							return Action.TURN_RIGHT;
@@ -261,11 +310,11 @@ class AgentFunction {
 					return Action.TURN_RIGHT;
 				}
 			} else if (agentDir == 'S') {
-				if (agentPos[1] - 1 >= 0) // Agent is far form west wall
+				if (agentPos[POS_X] - 1 >= 0) // Agent is far form west wall
 				{
-					if (agentPos[1] + 1 < worldSize) // Agent is far from west and east wall
+					if (agentPos[POS_X] + 1 < worldSize) // Agent is far from west and east wall
 					{
-						if (scoremap[agentPos[0]][agentPos[1] - 1][2] == 0) {
+						if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_EXPLORED] == 0) {
 							return Action.TURN_RIGHT;
 						} else {
 							return Action.TURN_LEFT;
@@ -279,11 +328,11 @@ class AgentFunction {
 					return Action.TURN_LEFT;
 				}
 			} else if (agentDir == 'W') {
-				if (agentPos[0] - 1 >= 0) // Agent is far from south wall
+				if (agentPos[POS_Y] - 1 >= 0) // Agent is far from south wall
 				{
-					if (agentPos[0] + 1 < worldSize) // Agent is far from south and north wall
+					if (agentPos[POS_Y] + 1 < worldSize) // Agent is far from south and north wall
 					{
-						if (scoremap[agentPos[0] - 1][agentPos[1]][2] == 0) {
+						if (scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_EXPLORED] == 0) {
 							return Action.TURN_LEFT;
 						} else {
 							return Action.TURN_RIGHT;
@@ -297,11 +346,13 @@ class AgentFunction {
 					return Action.TURN_RIGHT;
 				}
 			} else if (agentDir == 'E') {
-				if (agentPos[0] - 1 >= 0) // Agent is far from south wall
+				if (agentPos[POS_Y] - 1 >= 0) // Agent is far from south wall
 				{
-					if (agentPos[0] + 1 < worldSize) // Agent is far from south and north wall
+					if (agentPos[POS_Y] + 1 < worldSize) // Agent is far from
+															// south and north
+															// wall
 					{
-						if (scoremap[agentPos[0] - 1][agentPos[1]][2] == 0) {
+						if (scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_EXPLORED] == 0) {
 							return Action.TURN_RIGHT;
 						} else {
 							return Action.TURN_LEFT;
@@ -316,118 +367,85 @@ class AgentFunction {
 				}
 			}
 		}
+
+		isLastMoveBackward = false;
 		
-		if (agentDir == 'N')
-		{
-			if(agentPos[0] < worldSize - 1)
-			{
-				if( scoremap[agentPos[0] + 1][agentPos[1]][2] == 0 )
-				{
+		if (agentDir == 'N') {
+			if (agentPos[POS_Y] < worldSize - 1) {
+				if (scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_EXPLORED] == 0) {
 					isFirstMoving = false;
 					return Action.GO_FORWARD;
-				}
-				else if( agentPos[1] + 1 < worldSize && scoremap[agentPos[0]][agentPos[1] + 1][2] == 0 )
-				{
+				} else if (agentPos[POS_X] + 1 < worldSize
+						&& scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_EXPLORED] == 0) {
 					return Action.TURN_RIGHT;
-				}
-				else if( agentPos[1] - 1 > 0 && scoremap[agentPos[0]][agentPos[1] - 1][2] == 0 )
-				{
+				} else if (agentPos[POS_X] - 1 > 0
+						&& scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_EXPLORED] == 0) {
 					return Action.TURN_LEFT;
-				}
-				else
-				{
+				} else {
 					isFirstMoving = false;
 					return Action.GO_FORWARD;
 				}
-			}
-			else // make percept bump
+			} else // make percept bump
 			{
 				isFirstMoving = false;
 				return Action.GO_FORWARD;
 			}
-		}
-		else if(agentDir == 'S')
-		{
-			if(agentPos[0] > 0)
-			{
-				if( scoremap[agentPos[0] - 1][agentPos[1]][2] == 0 )
-				{
+		} else if (agentDir == 'S') {
+			if (agentPos[POS_Y] > 0) {
+				if (scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_EXPLORED] == 0) {
 					isFirstMoving = false;
 					return Action.GO_FORWARD;
-				}
-				else if( agentPos[1] + 1 < worldSize && scoremap[agentPos[0]][agentPos[1] + 1][2] == 0 )
-				{
+				} else if (agentPos[POS_X] + 1 < worldSize
+						&& scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_EXPLORED] == 0) {
 					return Action.TURN_LEFT;
-				}
-				else if( agentPos[1] - 1 > 0 && scoremap[agentPos[0]][agentPos[1] - 1][2] == 0 )
-				{
+				} else if (agentPos[POS_X] - 1 > 0
+						&& scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_EXPLORED] == 0) {
 					return Action.TURN_RIGHT;
-				}
-				else
-				{
+				} else {
 					isFirstMoving = false;
 					return Action.GO_FORWARD;
 				}
-			}
-			else // make percept bump
+			} else // make percept bump
 			{
 				isFirstMoving = false;
 				return Action.GO_FORWARD;
 			}
-		}
-		else if(agentDir == 'W')
-		{
-			if(agentPos[1] > 0)
-			{
-				if( scoremap[agentPos[0]][agentPos[1] + 1][2] == 0 )
-				{
+		} else if (agentDir == 'W') {
+			if (agentPos[POS_X] > 0) {
+				if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_EXPLORED] == 0) {
 					isFirstMoving = false;
 					return Action.GO_FORWARD;
-				}
-				else if( agentPos[0] + 1 < worldSize && scoremap[agentPos[0] + 1][agentPos[1]][2] == 0 )
-				{
+				} else if (agentPos[POS_Y] + 1 < worldSize
+						&& scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_EXPLORED] == 0) {
 					return Action.TURN_RIGHT;
-				}
-				else if( agentPos[0] - 1 > 0 && scoremap[agentPos[0] - 1][agentPos[1]][2] == 0 )
-				{
+				} else if (agentPos[POS_Y] - 1 > 0
+						&& scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_EXPLORED] == 0) {
 					return Action.TURN_LEFT;
-				}
-				else
-				{
+				} else {
 					isFirstMoving = false;
 					return Action.GO_FORWARD;
 				}
-			}
-			else // make percept bump
+			} else // make percept bump
 			{
 				isFirstMoving = false;
 				return Action.GO_FORWARD;
 			}
-		}
-		else if(agentDir == 'E')
-		{
-			if(agentPos[1] < worldSize - 1)
-			{
-				if( scoremap[agentPos[0]][agentPos[1] + 1][2] == 0 )
-				{
+		} else if (agentDir == 'E') {
+			if (agentPos[POS_X] < worldSize - 1) {
+				if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_EXPLORED] == 0) {
 					isFirstMoving = false;
 					return Action.GO_FORWARD;
-				}
-				else if( agentPos[0] + 1 < worldSize && scoremap[agentPos[0] + 1][agentPos[1]][2] == 0 )
-				{
+				} else if (agentPos[POS_Y] + 1 < worldSize
+						&& scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_EXPLORED] == 0) {
 					return Action.TURN_LEFT;
-				}
-				else if( agentPos[0] - 1 > 0 && scoremap[agentPos[0] - 1][agentPos[1]][2] == 0 )
-				{
+				} else if (agentPos[POS_Y] - 1 > 0
+						&& scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_EXPLORED] == 0) {
 					return Action.TURN_RIGHT;
-				}
-				else
-				{
+				} else {
 					isFirstMoving = false;
 					return Action.GO_FORWARD;
 				}
-			}
-			else // make percept bump
+			} else // make percept bump
 			{
 				isFirstMoving = false;
 				return Action.GO_FORWARD;
@@ -444,5 +462,190 @@ class AgentFunction {
 	// do not remove this method
 	public String getAgentName() {
 		return agentName;
+	}
+
+	// if type == 0, then it is pit
+	// if type == 1, then it is wumpus
+	// if type == 2, then it is explored room
+	void updateScoreMap(int agentPos[], int type) {
+		if ( scoreMap[agentPos[POS_Y]][agentPos[POS_X]][TYPE_EXPLORED] != 1 ) {
+			switch (type) {
+			case 0:
+				if (agentPos[POS_Y] == 0) {
+					if (scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_PIT] != 1) {
+						scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_PIT] -= 1;
+					}
+				} else if (agentPos[POS_Y] == worldSize - 1) {
+					if (scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_PIT] != 1) {
+						scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_PIT] -= 1;
+					}
+				} else {
+					if (scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_PIT] != 1) {
+						scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_PIT] -= 1;
+					}
+
+					if (scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_PIT] != 1) {
+						scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_PIT] -= 1;
+					}
+				}
+
+				if (agentPos[POS_X] == 0) {
+					if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_PIT] != 1) {
+						scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_PIT] -= 1;
+					}
+				} else if (agentPos[POS_X] == worldSize - 1) {
+					if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_PIT] != 1) {
+						scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_PIT] -= 1;
+					}
+				} else {
+					if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_PIT] != 1) {
+						scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_PIT] -= 1;
+					}
+					if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_PIT] != 1) {
+						scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_PIT] -= 1;
+					}
+				}
+				updateScoreMap(agentPos, TYPE_EXPLORED);
+				break;
+			case 1:
+				if (!isFindWumpus) {
+					if (agentPos[POS_Y] == 0) {
+						if (scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_WUMPUS] != 1) {
+							scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_WUMPUS] -= 1;
+						}
+					} else if (agentPos[POS_Y] == worldSize - 1) {
+						if (scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_WUMPUS] != 1) {
+							scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_WUMPUS] -= 1;
+						}
+					} else {
+						if (scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_WUMPUS] != 1) {
+							scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_WUMPUS] -= 1;
+						}
+
+						if (scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_WUMPUS] != 1) {
+							scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_WUMPUS] -= 1;
+						}
+					}
+
+					if (agentPos[POS_X] == 0) {
+						if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_WUMPUS] != 1) {
+							scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_WUMPUS] -= 1;
+						}
+					} else if (agentPos[POS_X] == worldSize - 1) {
+						if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_WUMPUS] != 1) {
+							scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_WUMPUS] -= 1;
+						}
+					} else {
+						if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_WUMPUS] != 1) {
+							scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_WUMPUS] -= 1;
+						}
+						if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_WUMPUS] != 1) {
+							scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_WUMPUS] -= 1;
+						}
+					}
+
+					++stchRoomCnt;
+
+					if (stchRoomCnt >= 2) {
+						int wumpusRoom[][] = new int[2][3];
+						int cnt = 0;
+						for (int i = 0; i < worldSize; ++i) {
+							for (int j = 0; j < worldSize; ++j) {
+								if (scoreMap[i][j][TYPE_WUMPUS] <= -2) {
+									wumpusRoom[cnt][POS_Y] = i;
+									wumpusRoom[cnt][POS_X] = j;
+									wumpusRoom[cnt++][2] = scoreMap[i][j][TYPE_WUMPUS];
+								}
+							}
+						}
+
+						if (cnt == 2) {
+							for (int i = 0; i < worldSize; ++i) {
+								for (int j = 0; j < worldSize; ++j) {
+									scoreMap[i][j][TYPE_WUMPUS] = 1;
+								}
+							}
+							if(wumpusRoom[0][2] == wumpusRoom[1][2])
+							{
+								scoreMap[wumpusRoom[0][POS_Y]][wumpusRoom[0][POS_X]][TYPE_WUMPUS] = -5;
+								scoreMap[wumpusRoom[1][POS_Y]][wumpusRoom[1][POS_X]][TYPE_WUMPUS] = -5;
+								mustShoot = true;
+							}
+							else if (wumpusRoom[0][2] < wumpusRoom[1][2])
+							{
+								scoreMap[wumpusRoom[0][POS_Y]][wumpusRoom[0][POS_X]][TYPE_WUMPUS] = -5;
+								scoreMap[wumpusRoom[1][POS_Y]][wumpusRoom[1][POS_X]][TYPE_WUMPUS] = 1;
+								isFindWumpus = true;
+							}
+							else
+							{
+								scoreMap[wumpusRoom[0][POS_Y]][wumpusRoom[0][POS_X]][TYPE_WUMPUS] = 1;
+								scoreMap[wumpusRoom[1][POS_Y]][wumpusRoom[1][POS_X]][TYPE_WUMPUS] = -5;
+								isFindWumpus = true;
+							}
+						} else if (cnt == 1) {
+							for (int i = 0; i < worldSize; ++i) {
+								for (int j = 0; j < worldSize; ++j) {
+									scoreMap[i][j][TYPE_WUMPUS] = 1;
+								}
+							}
+							scoreMap[wumpusRoom[0][POS_Y]][wumpusRoom[0][POS_X]][TYPE_WUMPUS] = -5;
+							isFindWumpus = true;
+						}
+					}
+					updateScoreMap(agentPos, TYPE_EXPLORED);
+				}
+				break;
+			case 2:
+				scoreMap[agentPos[POS_Y]][agentPos[POS_X]][TYPE_PIT] = 1;
+				scoreMap[agentPos[POS_Y]][agentPos[POS_X]][TYPE_WUMPUS] = 1;
+				scoreMap[agentPos[POS_Y]][agentPos[POS_X]][TYPE_EXPLORED] = 1;
+				break;
+			}
+		}
+	}
+
+	boolean isSafe(int[] agentPos, char agentDir) {
+		if (agentDir == 'N') {
+			if (agentPos[POS_Y] == worldSize - 1) {
+				return true;
+			} else {
+				if (scoreMap[agentPos[POS_Y] + 1][agentPos[POS_X]][TYPE_WUMPUS] == 1) {
+					return true;
+				} else {
+					return false;
+				}
+			}
+		} else if (agentDir == 'S') {
+			if (agentPos[POS_Y] == 0) {
+				return true;
+			} else {
+				if (scoreMap[agentPos[POS_Y] - 1][agentPos[POS_X]][TYPE_WUMPUS] == 1) {
+					return true;
+				} else {
+					return false;
+				}
+			}
+		} else if (agentDir == 'W') {
+			if (agentPos[POS_X] == 0) {
+				return true;
+			} else {
+				if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] - 1][TYPE_WUMPUS] == 1) {
+					return true;
+				} else {
+					return false;
+				}
+			}
+		} else {
+			if (agentPos[POS_X] == worldSize - 1) {
+				return true;
+			} else {
+				if (scoreMap[agentPos[POS_Y]][agentPos[POS_X] + 1][TYPE_WUMPUS] == 1) {
+					return true;
+				} else {
+					return false;
+				}
+			}
+		}
 	}
 }
