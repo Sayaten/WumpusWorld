@@ -47,7 +47,7 @@ class Agent {
 		// modify code
 		wumpusWorld = world;
 		worldSize = wumpusWorld.getWorldSize();
-		agentFunction = new AgentFunction(worldSize, wumpusWorld.getAgentLocation());
+		agentFunction = new AgentFunction(worldSize, wumpusWorld.getAgentLocation(),wumpusWorld.getAgentDirection());
 		percept = perceptTrans;
 		
 		// initial location
@@ -77,7 +77,7 @@ class Agent {
 	}
 	
 	public int chooseAction() {
-		return agentFunction.process(percept, this.getLocation(), this.getDirection());
+		return agentFunction.process(percept);
 	}
 	
 	public char getAgentIcon() {

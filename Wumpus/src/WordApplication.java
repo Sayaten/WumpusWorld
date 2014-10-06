@@ -138,30 +138,6 @@ class WorldApplication {
 		for(int i = size * 3 ; i > 0 ; --i)
 		{
 			line = br.readLine();
-			/*
-			if(i % 3 == 0)
-			{
-				continue;
-			}
-			else if(i % 3 == 2)
-			{
-				for(int j = 0 ; j < size ; ++j)
-				{
-					room_attri = line.substring(6*j + 1, 6 * j + 5);
-					newWorld[i / 3][j][0] = room_attri.charAt(1);
-					newWorld[i / 3][j][1] = room_attri.charAt(3);
-				}
-			}
-			else
-			{
-				for(int j = 0 ; j < size ; ++j)
-				{
-					room_attri = line.substring(6*j + 1, 6 * j + 5);
-					newWorld[i / 3][j][2] = room_attri.charAt(1);
-					newWorld[i / 3][j][3] = room_attri.charAt(3);
-				}
-			}
-			*/
 			if(i % 3 == 0)
 			{
 				continue;
